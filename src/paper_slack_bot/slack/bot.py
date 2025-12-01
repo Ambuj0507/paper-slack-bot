@@ -131,16 +131,10 @@ class PaperSlackBot:
             for i, batch in enumerate(block_batches):
                 if i > 0:
                     # Add continuation header for subsequent messages
-                    batch.insert(
-                        0,
-                        {
-                            "type": "section",
-                            "text": {
-                                "type": "mrkdwn",
-                                "text": f"🔍 *Search Results (continued - part {i + 1})*",
-                            },
-                        },
+                    header = SlackFormatter.create_continuation_header(
+                        "🔍 *Search Results*", i + 1
                     )
+                    batch.insert(0, header)
                 client.chat_postMessage(channel=channel_id, blocks=batch)
 
         except Exception as e:
@@ -393,7 +387,9 @@ class PaperSlackBot:
                 )
 
             # Filter out already reported papers (papers that already exist in database)
-            new_papers = [p for p in papers if not (p.doi and self.database.paper_exists(p.doi))]
+            paper_dois = [p.doi for p in papers if p.doi]
+            existing_dois = self.database.get_existing_dois(paper_dois)
+            new_papers = [p for p in papers if not (p.doi and p.doi in existing_dois)]
             logger.info(
                 f"Filtered {len(papers) - len(new_papers)} already reported papers, "
                 f"{len(new_papers)} new papers remaining"
@@ -413,16 +409,10 @@ class PaperSlackBot:
             for i, batch in enumerate(block_batches):
                 if i > 0:
                     # Add continuation header for subsequent messages
-                    batch.insert(
-                        0,
-                        {
-                            "type": "section",
-                            "text": {
-                                "type": "mrkdwn",
-                                "text": f"📚 *Paper Digest (continued - part {i + 1})*",
-                            },
-                        },
+                    header = SlackFormatter.create_continuation_header(
+                        "📚 *Paper Digest*", i + 1
                     )
+                    batch.insert(0, header)
                 self.app.client.chat_postMessage(channel=channel, blocks=batch)
 
             logger.info(

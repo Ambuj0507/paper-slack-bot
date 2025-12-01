@@ -503,3 +503,22 @@ class SlackFormatter:
             result.append(current_batch)
 
         return result
+
+    @staticmethod
+    def create_continuation_header(title: str, part_number: int) -> dict[str, Any]:
+        """Create a continuation header block for multi-part messages.
+
+        Args:
+            title: The title prefix for the continuation message.
+            part_number: The part number (1-indexed).
+
+        Returns:
+            A Slack section block with the continuation header.
+        """
+        return {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"{title} (continued - part {part_number})",
+            },
+        }

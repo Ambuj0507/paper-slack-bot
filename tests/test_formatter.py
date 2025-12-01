@@ -112,3 +112,24 @@ class TestSplitBlocks:
     def test_max_blocks_constant_is_50(self):
         """Test that the MAX_BLOCKS_PER_MESSAGE constant is 50."""
         assert MAX_BLOCKS_PER_MESSAGE == 50
+
+
+class TestContinuationHeader:
+    """Tests for the create_continuation_header method."""
+
+    def test_create_continuation_header(self):
+        """Test creating a continuation header."""
+        header = SlackFormatter.create_continuation_header("🔍 *Search Results*", 2)
+
+        assert header["type"] == "section"
+        assert header["text"]["type"] == "mrkdwn"
+        assert "continued - part 2" in header["text"]["text"]
+        assert "🔍 *Search Results*" in header["text"]["text"]
+
+    def test_create_continuation_header_different_parts(self):
+        """Test continuation headers for different part numbers."""
+        header1 = SlackFormatter.create_continuation_header("📚 *Paper Digest*", 3)
+        header2 = SlackFormatter.create_continuation_header("📚 *Paper Digest*", 5)
+
+        assert "part 3" in header1["text"]["text"]
+        assert "part 5" in header2["text"]["text"]
