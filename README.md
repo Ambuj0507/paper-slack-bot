@@ -50,18 +50,6 @@ A Slack-focused scientific paper discovery bot inspired by [PaperBee](https://gi
   - `/papersettings` - View/update bot settings
 - **Scheduled posting** - Daily digest to configured channel
 
-## 📊 Comparison with PaperBee
-
-| Feature | PaperBee | Paper Slack Bot |
-|---------|----------|-----------------|
-| Platforms | Slack, Telegram, Zulip, Mattermost | **Slack only** (optimized) |
-| Search | Keyword-based via findpapers | **Semantic + keyword + filters** |
-| Journal filtering | ❌ None | ✅ **By name, tier, include/exclude** |
-| Interactive search | ❌ None | ✅ **Slack slash commands** |
-| User preferences | Config file only | **Per-user in Slack** |
-| Search history | ❌ None | ✅ **SQLite database** |
-| Message formatting | Basic | **Rich blocks with actions** |
-
 ## 🚀 Quick Start
 
 ### Installation
