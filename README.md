@@ -25,7 +25,7 @@ A Slack-focused scientific paper discovery bot inspired by [PaperBee](https://gi
   - Exclude specific terms
 - **Search history** stored in local SQLite database
 
-### 📚 Journal Name Filtering (NEW - Not in PaperBee)
+### 📚 Journal Name Filtering
 - Filter papers by specific journal names (include/exclude lists)
 - Support journal tiers/categories:
   - 🏆 **Tier 1**: Nature, Science, Cell, NEJM, Lancet
