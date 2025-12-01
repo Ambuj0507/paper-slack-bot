@@ -1,0 +1,82 @@
+# Paper Slack Bot Configuration
+# Copy this file to config.yml and fill in your values
+
+# Slack Configuration
+slack:
+  bot_token: "${SLACK_BOT_TOKEN}"
+  app_token: "${SLACK_APP_TOKEN}"
+  channel_id: "C0123456789"  # Replace with your channel ID
+
+# API Keys
+ncbi_api_key: "${NCBI_API_KEY}"
+openai_api_key: "${OPENAI_API_KEY}"
+
+# Search Configuration
+search:
+  keywords:
+    - "machine learning"
+    - "single-cell RNA"
+    - "deep learning"
+    - "computational biology"
+  databases:
+    - pubmed
+    - biorxiv
+    - arxiv
+  days_back: 1
+
+# Journal Filtering (NEW - key differentiator from PaperBee)
+journals:
+  # Explicitly include specific journals
+  include:
+    - "Nature"
+    - "Science"
+    - "Cell"
+    - "Nature Methods"
+    - "Nature Communications"
+    - "eLife"
+  # Exclude specific journals
+  exclude: []
+  # Include all journals from these tiers
+  # Options: tier1, tier2, ml, preprints
+  tiers:
+    - tier1
+    - tier2
+    - ml
+  # Whether to include preprints (bioRxiv, arXiv, medRxiv)
+  show_preprints: true
+
+# LLM Configuration
+llm:
+  # Provider: "openai" or "ollama"
+  provider: "openai"
+  # Model name
+  model: "gpt-4o-mini"
+  # Base URL (for Ollama: "http://localhost:11434/v1")
+  base_url: null
+  # Prompt for filtering papers - customize this to match your research interests
+  filtering_prompt: |
+    You are a research assistant helping filter scientific papers.
+    Focus on papers about machine learning for biology and computational biology.
+    Rate each paper's relevance from 0-100 and provide a brief explanation.
+    Consider: methodology novelty, dataset quality, and practical applications.
+    
+    Highly relevant topics:
+    - Deep learning for genomics
+    - Single-cell analysis methods
+    - Protein structure prediction
+    - Drug discovery with AI
+    
+    Less relevant topics:
+    - Pure clinical trials without computational methods
+    - Traditional statistics without machine learning
+
+# Posting Schedule
+schedule:
+  enabled: true
+  time: "09:00"
+  timezone: "UTC"
+
+# Storage
+storage:
+  database_path: "papers.db"
+  cache_days: 30

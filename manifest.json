@@ -1,0 +1,69 @@
+{
+  "display_information": {
+    "name": "Paper Slack Bot",
+    "description": "Scientific paper discovery bot with enhanced search and journal filtering",
+    "background_color": "#4A154B",
+    "long_description": "A Slack-focused scientific paper discovery bot inspired by PaperBee but with enhanced features. Fetches papers from PubMed, bioRxiv, and arXiv. Features semantic and keyword search, journal tier filtering, and LLM-based relevance scoring."
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "PaperBot",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/papersearch",
+        "description": "Search for scientific papers",
+        "usage_hint": "[search query]",
+        "should_escape": false
+      },
+      {
+        "command": "/papersubscribe",
+        "description": "Subscribe to paper topics for daily updates",
+        "usage_hint": "[keywords]",
+        "should_escape": false
+      },
+      {
+        "command": "/paperjournals",
+        "description": "Configure and view journal preferences",
+        "usage_hint": "[tier1|tier2|ml|preprints|list]",
+        "should_escape": false
+      },
+      {
+        "command": "/papersettings",
+        "description": "View and update bot settings",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "chat:write.public",
+        "commands",
+        "channels:read",
+        "groups:read",
+        "im:read",
+        "mpim:read",
+        "users:read"
+      ]
+    }
+  },
+  "settings": {
+    "socket_mode_enabled": true,
+    "event_subscriptions": {
+      "bot_events": [
+        "message.channels",
+        "message.groups",
+        "message.im",
+        "message.mpim"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "is_hosted": false
+  }
+}

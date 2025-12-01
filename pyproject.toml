@@ -1,0 +1,58 @@
+[tool.poetry]
+name = "paper-slack-bot"
+version = "0.1.0"
+description = "Slack-focused scientific paper discovery bot with enhanced search and journal filtering"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+license = "MIT"
+packages = [{include = "paper_slack_bot", from = "src"}]
+
+[tool.poetry.scripts]
+paper-slack-bot = "paper_slack_bot.main:cli"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+slack-bolt = "^1.18.0"
+slack-sdk = "^3.21.0"
+openai = "^1.0.0"
+requests = "^2.31.0"
+pyyaml = "^6.0"
+python-dotenv = "^1.0.0"
+click = "^8.1.0"
+sentence-transformers = "^2.2.0"
+numpy = "^1.24.0"
+aiohttp = "^3.9.0"
+apscheduler = "^3.10.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+pytest-mock = "^3.11.0"
+responses = "^0.23.0"
+black = "^23.7.0"
+isort = "^5.12.0"
+mypy = "^1.5.0"
+flake8 = "^6.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
