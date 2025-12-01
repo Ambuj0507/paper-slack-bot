@@ -235,6 +235,28 @@ class Database:
             cursor.execute("SELECT 1 FROM papers WHERE doi = ?", (doi,))
             return cursor.fetchone() is not None
 
+    def get_existing_dois(self, dois: list[str]) -> set[str]:
+        """Check which DOIs already exist in the database.
+
+        Args:
+            dois: List of DOIs to check.
+
+        Returns:
+            Set of DOIs that already exist in the database.
+        """
+        if not dois:
+            return set()
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            # Use parameterized query with IN clause
+            placeholders = ",".join("?" * len(dois))
+            cursor.execute(
+                f"SELECT doi FROM papers WHERE doi IN ({placeholders})",
+                dois,
+            )
+            return {row["doi"] for row in cursor.fetchall()}
+
     def get_recent_papers(
         self, days: int = 7, source: Optional[str] = None
     ) -> list[Paper]:

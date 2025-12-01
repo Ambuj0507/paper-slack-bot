@@ -107,7 +107,7 @@ class ScheduleConfig:
 
     enabled: bool = True
     time: str = "09:00"
-    timezone: str = "UTC"
+    timezone: str = "Asia/Kolkata"  # IST timezone
 
 
 @dataclass
@@ -231,7 +231,7 @@ class Config:
             config.schedule = ScheduleConfig(
                 enabled=schedule_data.get("enabled", True),
                 time=schedule_data.get("time", "09:00"),
-                timezone=schedule_data.get("timezone", "UTC"),
+                timezone=schedule_data.get("timezone", "Asia/Kolkata"),  # IST timezone
             )
 
         # Storage config

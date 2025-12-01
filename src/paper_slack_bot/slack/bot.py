@@ -14,7 +14,7 @@ from paper_slack_bot.config import Config
 from paper_slack_bot.filtering.llm_filter import LLMFilter
 from paper_slack_bot.search.journal_filter import JournalFilter
 from paper_slack_bot.search.paper_fetcher import PaperFetcher
-from paper_slack_bot.search.search_engine import SearchEngine, SearchFilters
+from paper_slack_bot.search.search_engine import SearchEngine
 from paper_slack_bot.slack.formatter import SlackFormatter
 from paper_slack_bot.storage.database import Database, UserPreference
 
@@ -125,7 +125,17 @@ class PaperSlackBot:
                 user_id=user_id,
             )
 
-            client.chat_postMessage(channel=channel_id, blocks=blocks)
+            # Split blocks to respect Slack's 50-block limit
+            block_batches = SlackFormatter.split_blocks(blocks)
+
+            for i, batch in enumerate(block_batches):
+                if i > 0:
+                    # Add continuation header for subsequent messages
+                    header = SlackFormatter.create_continuation_header(
+                        "🔍 *Search Results*", i + 1
+                    )
+                    batch.insert(0, header)
+                client.chat_postMessage(channel=channel_id, blocks=batch)
 
         except Exception as e:
             logger.error(f"Error in papersearch: {e}")
@@ -152,7 +162,7 @@ class PaperSlackBot:
             # Show current subscriptions
             pref = self.database.get_user_preference(user_id)
             if pref and pref.subscribed_keywords:
-                message = f"Your current subscriptions:\n• " + "\n• ".join(
+                message = "Your current subscriptions:\n• " + "\n• ".join(
                     pref.subscribed_keywords
                 )
             else:
@@ -185,7 +195,9 @@ class PaperSlackBot:
                 )
             )
 
-            message = f"Subscribed to: {', '.join(new_keywords)}\nAll subscriptions: {', '.join(all_keywords)}"
+            new_keywords_str = ", ".join(new_keywords)
+            all_keywords_str = ", ".join(all_keywords)
+            message = f"Subscribed to: {new_keywords_str}\nAll subscriptions: {all_keywords_str}"
             client.chat_postMessage(
                 channel=channel_id,
                 blocks=self.formatter.format_success(message),
@@ -228,7 +240,11 @@ class PaperSlackBot:
                     tier_blocks = self.formatter.format_journal_list(journals, tier=tier)
                     blocks.extend(tier_blocks)
 
-            client.chat_postMessage(channel=channel_id, blocks=blocks)
+            # Split blocks to respect Slack's 50-block limit
+            block_batches = SlackFormatter.split_blocks(blocks)
+
+            for batch in block_batches:
+                client.chat_postMessage(channel=channel_id, blocks=batch)
 
         except Exception as e:
             logger.error(f"Error in paperjournals: {e}")
@@ -370,6 +386,16 @@ class PaperSlackBot:
                     research_interests=self.config.llm.filtering_prompt,
                 )
 
+            # Filter out already reported papers (papers that already exist in database)
+            paper_dois = [p.doi for p in papers if p.doi]
+            existing_dois = self.database.get_existing_dois(paper_dois)
+            new_papers = [p for p in papers if not (p.doi and p.doi in existing_dois)]
+            logger.info(
+                f"Filtered {len(papers) - len(new_papers)} already reported papers, "
+                f"{len(new_papers)} new papers remaining"
+            )
+            papers = new_papers
+
             # Save papers to database
             self.database.save_papers(papers)
 
@@ -377,8 +403,22 @@ class PaperSlackBot:
             date_str = datetime.now().strftime("%Y-%m-%d")
             blocks = self.formatter.format_digest(papers, date_str)
 
-            self.app.client.chat_postMessage(channel=channel, blocks=blocks)
-            logger.info(f"Posted {len(papers)} papers to {channel}")
+            # Split blocks to respect Slack's 50-block limit
+            block_batches = SlackFormatter.split_blocks(blocks)
+
+            for i, batch in enumerate(block_batches):
+                if i > 0:
+                    # Add continuation header for subsequent messages
+                    header = SlackFormatter.create_continuation_header(
+                        "📚 *Paper Digest*", i + 1
+                    )
+                    batch.insert(0, header)
+                self.app.client.chat_postMessage(channel=channel, blocks=batch)
+
+            logger.info(
+                f"Posted {len(papers)} papers to {channel} "
+                f"in {len(block_batches)} message(s)"
+            )
 
         except Exception as e:
             logger.error(f"Error posting papers: {e}")
