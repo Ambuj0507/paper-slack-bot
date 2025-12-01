@@ -5,6 +5,9 @@ from typing import Any, Optional
 from paper_slack_bot.search.journal_filter import JournalFilter
 from paper_slack_bot.storage.database import Paper
 
+# Slack API limit for blocks per message
+MAX_BLOCKS_PER_MESSAGE = 50
+
 
 class SlackFormatter:
     """Format papers for Slack messages with rich formatting."""
@@ -469,3 +472,34 @@ class SlackFormatter:
         filled = int((score / 100) * length)
         empty = length - filled
         return "▓" * filled + "░" * empty
+
+    @staticmethod
+    def split_blocks(
+        blocks: list[dict[str, Any]],
+        max_blocks: int = MAX_BLOCKS_PER_MESSAGE,
+    ) -> list[list[dict[str, Any]]]:
+        """Split blocks into multiple messages to respect Slack's 50-block limit.
+
+        Args:
+            blocks: List of Slack block elements.
+            max_blocks: Maximum number of blocks per message (default: 50).
+
+        Returns:
+            List of block lists, each within the max_blocks limit.
+        """
+        if len(blocks) <= max_blocks:
+            return [blocks]
+
+        result = []
+        current_batch = []
+
+        for block in blocks:
+            current_batch.append(block)
+            if len(current_batch) >= max_blocks:
+                result.append(current_batch)
+                current_batch = []
+
+        if current_batch:
+            result.append(current_batch)
+
+        return result
