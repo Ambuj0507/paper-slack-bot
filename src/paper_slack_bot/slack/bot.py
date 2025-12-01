@@ -82,11 +82,11 @@ class PaperSlackBot:
         channel_id = command.get("channel_id")
 
         if not query:
+            error_msg = "Please provide a search query. Usage: /papersearch <query>"
             client.chat_postMessage(
                 channel=channel_id,
-                blocks=self.formatter.format_error(
-                    "Please provide a search query. Usage: /papersearch <query>"
-                ),
+                text=f"Error: {error_msg}",
+                blocks=self.formatter.format_error(error_msg),
             )
             return
 
@@ -135,13 +135,19 @@ class PaperSlackBot:
                         "🔍 *Search Results*", i + 1
                     )
                     batch.insert(0, header)
-                client.chat_postMessage(channel=channel_id, blocks=batch)
+                client.chat_postMessage(
+                    channel=channel_id,
+                    text=f"Search results for: {query} ({len(papers)} papers found)",
+                    blocks=batch,
+                )
 
         except Exception as e:
             logger.error(f"Error in papersearch: {e}")
+            error_msg = f"Search failed: {str(e)}"
             client.chat_postMessage(
                 channel=channel_id,
-                blocks=self.formatter.format_error(f"Search failed: {str(e)}"),
+                text=f"Error: {error_msg}",
+                blocks=self.formatter.format_error(error_msg),
             )
 
     def _handle_papersubscribe(self, ack, command, client):
@@ -170,6 +176,7 @@ class PaperSlackBot:
 
             client.chat_postMessage(
                 channel=channel_id,
+                text=message,
                 blocks=self.formatter.format_success(message),
             )
             return
@@ -200,14 +207,17 @@ class PaperSlackBot:
             message = f"Subscribed to: {new_keywords_str}\nAll subscriptions: {all_keywords_str}"
             client.chat_postMessage(
                 channel=channel_id,
+                text=message,
                 blocks=self.formatter.format_success(message),
             )
 
         except Exception as e:
             logger.error(f"Error in papersubscribe: {e}")
+            error_msg = f"Subscription failed: {str(e)}"
             client.chat_postMessage(
                 channel=channel_id,
-                blocks=self.formatter.format_error(f"Subscription failed: {str(e)}"),
+                text=f"Error: {error_msg}",
+                blocks=self.formatter.format_error(error_msg),
             )
 
     def _handle_paperjournals(self, ack, command, client):
@@ -243,14 +253,21 @@ class PaperSlackBot:
             # Split blocks to respect Slack's 50-block limit
             block_batches = SlackFormatter.split_blocks(blocks)
 
+            tier_text = f" ({arg})" if arg else ""
             for batch in block_batches:
-                client.chat_postMessage(channel=channel_id, blocks=batch)
+                client.chat_postMessage(
+                    channel=channel_id,
+                    text=f"Configured journals{tier_text}",
+                    blocks=batch,
+                )
 
         except Exception as e:
             logger.error(f"Error in paperjournals: {e}")
+            error_msg = f"Failed to list journals: {str(e)}"
             client.chat_postMessage(
                 channel=channel_id,
-                blocks=self.formatter.format_error(f"Failed to list journals: {str(e)}"),
+                text=f"Error: {error_msg}",
+                blocks=self.formatter.format_error(error_msg),
             )
 
     def _handle_papersettings(self, ack, command, client):
@@ -289,13 +306,19 @@ class PaperSlackBot:
                 )
 
             blocks = self.formatter.format_settings(settings)
-            client.chat_postMessage(channel=channel_id, blocks=blocks)
+            client.chat_postMessage(
+                channel=channel_id,
+                text="Bot Settings",
+                blocks=blocks,
+            )
 
         except Exception as e:
             logger.error(f"Error in papersettings: {e}")
+            error_msg = f"Failed to get settings: {str(e)}"
             client.chat_postMessage(
                 channel=channel_id,
-                blocks=self.formatter.format_error(f"Failed to get settings: {str(e)}"),
+                text=f"Error: {error_msg}",
+                blocks=self.formatter.format_error(error_msg),
             )
 
     def _handle_save_paper(self, ack, body, client):
@@ -413,7 +436,11 @@ class PaperSlackBot:
                         "📚 *Paper Digest*", i + 1
                     )
                     batch.insert(0, header)
-                self.app.client.chat_postMessage(channel=channel, blocks=batch)
+                self.app.client.chat_postMessage(
+                    channel=channel,
+                    text=f"Paper Digest - {date_str}: {len(papers)} papers",
+                    blocks=batch,
+                )
 
             logger.info(
                 f"Posted {len(papers)} papers to {channel} "
@@ -422,9 +449,11 @@ class PaperSlackBot:
 
         except Exception as e:
             logger.error(f"Error posting papers: {e}")
+            error_msg = f"Failed to fetch papers: {str(e)}"
             self.app.client.chat_postMessage(
                 channel=channel,
-                blocks=self.formatter.format_error(f"Failed to fetch papers: {str(e)}"),
+                text=f"Error: {error_msg}",
+                blocks=self.formatter.format_error(error_msg),
             )
 
     def start_scheduler(self) -> None:
