@@ -13,6 +13,10 @@ on:
         default: '1'
         type: string
 
+# Minimum permissions needed for this workflow
+permissions:
+  contents: read
+
 jobs:
   post-papers:
     runs-on: ubuntu-latest

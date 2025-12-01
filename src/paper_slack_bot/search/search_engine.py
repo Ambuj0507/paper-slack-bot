@@ -181,7 +181,6 @@ class SemanticSearch:
                     "Semantic search will not be available."
                 )
         return self._model
-        return self._model
 
     def encode(self, texts: list[str]) -> Optional[np.ndarray]:
         """Encode texts to embeddings.
