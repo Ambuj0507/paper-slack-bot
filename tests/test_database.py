@@ -253,3 +253,111 @@ class TestSavePaperWithEmptyTitle:
         assert temp_db.paper_exists("10.1234/valid") is True
         assert temp_db.paper_exists("10.1234/empty") is False
         assert temp_db.paper_exists("10.1234/whitespace") is False
+
+
+class TestCleanupOldPapers:
+    """Tests for the cleanup_old_papers method."""
+
+    @pytest.fixture
+    def temp_db(self):
+        """Create a temporary database."""
+        fd, path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        db = Database(path)
+        yield db
+        os.unlink(path)
+
+    def test_cleanup_deletes_old_papers(self, temp_db):
+        """Test that cleanup deletes papers older than the specified days."""
+        from datetime import datetime, timedelta
+        import sqlite3
+
+        # Add a paper
+        paper = Paper(
+            title="Old Paper",
+            authors=["Author"],
+            abstract="Abstract",
+            doi="10.1234/old",
+            journal="Nature",
+            publication_date="2023-01-01",
+            url="https://example.com",
+            source="pubmed",
+        )
+        temp_db.save_paper(paper)
+
+        # Update created_at to be 60 days ago
+        conn = sqlite3.connect(temp_db.db_path)
+        cursor = conn.cursor()
+        old_date = datetime.now() - timedelta(days=60)
+        cursor.execute('UPDATE papers SET created_at = ?',
+                      (old_date.strftime('%Y-%m-%d %H:%M:%S'),))
+        conn.commit()
+        conn.close()
+
+        # Cleanup papers older than 30 days
+        deleted = temp_db.cleanup_old_papers(days=30)
+
+        assert deleted == 1
+        assert temp_db.paper_exists("10.1234/old") is False
+
+    def test_cleanup_keeps_recent_papers(self, temp_db):
+        """Test that cleanup keeps papers newer than the specified days."""
+        # Add a paper (it will have current timestamp)
+        paper = Paper(
+            title="Recent Paper",
+            authors=["Author"],
+            abstract="Abstract",
+            doi="10.1234/recent",
+            journal="Nature",
+            publication_date="2024-01-01",
+            url="https://example.com",
+            source="pubmed",
+        )
+        temp_db.save_paper(paper)
+
+        # Cleanup papers older than 30 days
+        deleted = temp_db.cleanup_old_papers(days=30)
+
+        assert deleted == 0
+        assert temp_db.paper_exists("10.1234/recent") is True
+
+    def test_cleanup_with_mixed_ages(self, temp_db):
+        """Test cleanup with papers of various ages."""
+        from datetime import datetime, timedelta
+        import sqlite3
+
+        # Add papers
+        ages = [0, 15, 29, 31, 60]  # days old
+        for i, age in enumerate(ages):
+            paper = Paper(
+                title=f"Paper {age} days old",
+                authors=["Author"],
+                abstract="Abstract",
+                doi=f"10.1234/paper{i}",
+                journal="Nature",
+                publication_date="2024-01-01",
+                url="https://example.com",
+                source="pubmed",
+            )
+            temp_db.save_paper(paper)
+
+        # Update created_at for each paper
+        conn = sqlite3.connect(temp_db.db_path)
+        cursor = conn.cursor()
+        for i, age in enumerate(ages):
+            old_date = datetime.now() - timedelta(days=age)
+            cursor.execute('UPDATE papers SET created_at = ? WHERE doi = ?',
+                          (old_date.strftime('%Y-%m-%d %H:%M:%S'), f"10.1234/paper{i}"))
+        conn.commit()
+        conn.close()
+
+        # Cleanup papers older than 30 days
+        deleted = temp_db.cleanup_old_papers(days=30)
+
+        # Papers 31 and 60 days old should be deleted
+        assert deleted == 2
+        assert temp_db.paper_exists("10.1234/paper0") is True  # 0 days
+        assert temp_db.paper_exists("10.1234/paper1") is True  # 15 days
+        assert temp_db.paper_exists("10.1234/paper2") is True  # 29 days
+        assert temp_db.paper_exists("10.1234/paper3") is False  # 31 days
+        assert temp_db.paper_exists("10.1234/paper4") is False  # 60 days

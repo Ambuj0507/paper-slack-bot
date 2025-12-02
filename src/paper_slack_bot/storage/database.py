@@ -11,6 +11,9 @@ from typing import Any, Generator, Optional
 
 logger = logging.getLogger(__name__)
 
+# SQLite timestamp format used by CURRENT_TIMESTAMP
+SQLITE_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
+
 
 @dataclass
 class Paper:
@@ -291,7 +294,7 @@ class Database:
                     WHERE created_at >= ? AND source = ?
                     ORDER BY created_at DESC
                 """,
-                    (cutoff_date.isoformat(), source),
+                    (cutoff_date.strftime(SQLITE_TIMESTAMP_FORMAT), source),
                 )
             else:
                 cursor.execute(
@@ -300,7 +303,7 @@ class Database:
                     WHERE created_at >= ?
                     ORDER BY created_at DESC
                 """,
-                    (cutoff_date.isoformat(),),
+                    (cutoff_date.strftime(SQLITE_TIMESTAMP_FORMAT),),
                 )
 
             return [self._row_to_paper(row) for row in cursor.fetchall()]
@@ -454,7 +457,8 @@ class Database:
             cursor = conn.cursor()
             cutoff_date = datetime.now() - timedelta(days=days)
             cursor.execute(
-                "DELETE FROM papers WHERE created_at < ?", (cutoff_date.isoformat(),)
+                "DELETE FROM papers WHERE created_at < ?",
+                (cutoff_date.strftime(SQLITE_TIMESTAMP_FORMAT),),
             )
             return cursor.rowcount
 
