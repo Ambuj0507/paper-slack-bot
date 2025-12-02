@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -9,6 +10,10 @@ from paper_slack_bot.config import LLMConfig
 from paper_slack_bot.storage.database import Paper
 
 logger = logging.getLogger(__name__)
+
+# Score bounds for relevance scoring
+MIN_SCORE = 0
+MAX_SCORE = 100
 
 
 @dataclass
@@ -309,8 +314,6 @@ Abstract: {paper.abstract[:500]}{'...' if len(paper.abstract) > 500 else ''}
         Returns:
             List of RelevanceResult objects.
         """
-        import re
-
         results = []
 
         # First, try to clean markdown code blocks if present
@@ -402,7 +405,7 @@ Abstract: {paper.abstract[:500]}{'...' if len(paper.abstract) > 500 else ''}
                 paper_scores = {}
                 for match in matches:
                     paper_num = int(match[0])
-                    score = min(100, max(0, int(match[1])))
+                    score = min(MAX_SCORE, max(MIN_SCORE, int(match[1])))
                     paper_scores[paper_num] = score
 
                 if paper_scores:
