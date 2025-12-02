@@ -8,9 +8,6 @@ from paper_slack_bot.storage.database import Paper
 # Slack API limit for blocks per message
 MAX_BLOCKS_PER_MESSAGE = 50
 
-# Maximum papers to show per category in digest
-MAX_PAPERS_PER_CATEGORY = 10
-
 # Error message patterns that should not be displayed to users
 ERROR_EXPLANATION_PATTERNS = [
     "unable to parse",
@@ -124,19 +121,19 @@ class SlackFormatter:
                         {
                             "type": "button",
                             "text": {"type": "plain_text", "text": "💾 Save"},
-                            "action_id": f"save_paper_{paper.doi or paper.title[:20]}",
+                            "action_id": "save_paper",
                             "value": paper.doi or paper.url,
                         },
                         {
                             "type": "button",
                             "text": {"type": "plain_text", "text": "📤 Share"},
-                            "action_id": f"share_paper_{paper.doi or paper.title[:20]}",
+                            "action_id": "share_paper",
                             "value": paper.url,
                         },
                         {
                             "type": "button",
                             "text": {"type": "plain_text", "text": "❌ Dismiss"},
-                            "action_id": f"dismiss_paper_{paper.doi or paper.title[:20]}",
+                            "action_id": "dismiss_paper",
                             "value": paper.doi or paper.url,
                         },
                     ],
@@ -319,7 +316,7 @@ class SlackFormatter:
                 }
             )
 
-            for paper in journal_papers[:MAX_PAPERS_PER_CATEGORY]:
+            for paper in journal_papers:
                 paper_blocks = self.format_paper(
                     paper,
                     show_abstract=False,  # Compact view for digest
@@ -340,7 +337,7 @@ class SlackFormatter:
                 }
             )
 
-            for paper in preprint_papers[:MAX_PAPERS_PER_CATEGORY]:
+            for paper in preprint_papers:
                 paper_blocks = self.format_paper(
                     paper,
                     show_abstract=False,  # Compact view for digest

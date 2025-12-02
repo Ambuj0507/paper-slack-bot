@@ -31,6 +31,153 @@ class TestSlackFormatter:
         )
 
 
+class TestActionButtons:
+    """Tests for action button formatting."""
+
+    @pytest.fixture
+    def formatter(self):
+        """Create a SlackFormatter instance."""
+        return SlackFormatter()
+
+    def test_format_paper_action_buttons_use_static_action_ids(self, formatter):
+        """Test that action buttons use static action IDs for proper handler matching."""
+        paper = Paper(
+            title="Test Paper Title",
+            authors=["Author 1"],
+            abstract="Test abstract",
+            doi="10.1234/test",
+            journal="Nature",
+            publication_date="2024-01-01",
+            url="https://example.com",
+            source="pubmed",
+        )
+
+        blocks = formatter.format_paper(paper, show_actions=True)
+
+        # Find the actions block
+        actions_block = None
+        for block in blocks:
+            if block.get("type") == "actions":
+                actions_block = block
+                break
+
+        assert actions_block is not None, "Actions block should be present"
+
+        # Check that action_ids are static (not dynamic with paper identifiers)
+        elements = actions_block["elements"]
+        action_ids = [elem["action_id"] for elem in elements]
+
+        assert "save_paper" in action_ids, "Save button should have static action_id 'save_paper'"
+        assert "share_paper" in action_ids, "Share button should have static action_id 'share_paper'"
+        assert "dismiss_paper" in action_ids, "Dismiss button should have static action_id 'dismiss_paper'"
+
+    def test_format_paper_action_buttons_contain_correct_values(self, formatter):
+        """Test that action buttons contain correct values for paper identification."""
+        paper = Paper(
+            title="Test Paper Title",
+            authors=["Author 1"],
+            abstract="Test abstract",
+            doi="10.1234/test",
+            journal="Nature",
+            publication_date="2024-01-01",
+            url="https://example.com",
+            source="pubmed",
+        )
+
+        blocks = formatter.format_paper(paper, show_actions=True)
+
+        # Find the actions block
+        actions_block = None
+        for block in blocks:
+            if block.get("type") == "actions":
+                actions_block = block
+                break
+
+        assert actions_block is not None
+
+        elements = actions_block["elements"]
+
+        # Check save button value contains DOI
+        save_button = next(e for e in elements if e["action_id"] == "save_paper")
+        assert save_button["value"] == "10.1234/test"
+
+        # Check share button value contains URL
+        share_button = next(e for e in elements if e["action_id"] == "share_paper")
+        assert share_button["value"] == "https://example.com"
+
+        # Check dismiss button value contains DOI
+        dismiss_button = next(e for e in elements if e["action_id"] == "dismiss_paper")
+        assert dismiss_button["value"] == "10.1234/test"
+
+
+class TestFormatDigestPaperLimit:
+    """Tests for format_digest showing all papers without artificial limits."""
+
+    @pytest.fixture
+    def formatter(self):
+        """Create a SlackFormatter instance."""
+        return SlackFormatter()
+
+    def _create_papers(self, count: int, source: str = "pubmed") -> list[Paper]:
+        """Create a list of test papers."""
+        return [
+            Paper(
+                title=f"Test Paper {i}",
+                authors=["Author 1"],
+                abstract=f"Test abstract {i}",
+                doi=f"10.1234/test{i}",
+                journal="Nature" if source == "pubmed" else "bioRxiv",
+                publication_date="2024-01-01",
+                url=f"https://example.com/{i}",
+                source=source,
+            )
+            for i in range(count)
+        ]
+
+    def _count_paper_titles(self, blocks: list) -> int:
+        """Count paper title blocks (sections with paper URL links)."""
+        count = 0
+        for block in blocks:
+            if block.get("type") == "section":
+                text_content = str(block.get("text", {}).get("text", ""))
+                # Title blocks have the format "*<URL|Title>*"
+                if text_content.startswith("*<https://example.com"):
+                    count += 1
+        return count
+
+    def test_format_digest_shows_all_journal_papers(self, formatter):
+        """Test that format_digest shows all journal papers without limit."""
+        papers = self._create_papers(25, source="pubmed")  # More than old limit of 10
+
+        blocks = formatter.format_digest(papers, "2024-01-01")
+
+        # Count the number of paper title blocks
+        paper_count = self._count_paper_titles(blocks)
+        assert paper_count == 25, "All 25 journal papers should be shown"
+
+    def test_format_digest_shows_all_preprint_papers(self, formatter):
+        """Test that format_digest shows all preprint papers without limit."""
+        papers = self._create_papers(20, source="biorxiv")  # More than old limit of 10
+
+        blocks = formatter.format_digest(papers, "2024-01-01")
+
+        # Count the number of paper title blocks
+        paper_count = self._count_paper_titles(blocks)
+        assert paper_count == 20, "All 20 preprint papers should be shown"
+
+    def test_format_digest_shows_all_mixed_papers(self, formatter):
+        """Test that format_digest shows all papers from both categories."""
+        journal_papers = self._create_papers(15, source="pubmed")
+        preprint_papers = self._create_papers(15, source="biorxiv")
+        all_papers = journal_papers + preprint_papers
+
+        blocks = formatter.format_digest(all_papers, "2024-01-01")
+
+        # Count the number of paper title blocks
+        paper_count = self._count_paper_titles(blocks)
+        assert paper_count == 30, "All 30 papers should be shown"
+
+
 class TestIsErrorExplanation:
     """Tests for the _is_error_explanation method."""
 
