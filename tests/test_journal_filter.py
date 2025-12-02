@@ -6,8 +6,7 @@ from paper_slack_bot.config import JournalConfig
 from paper_slack_bot.search.journal_filter import (
     JournalFilter,
     JournalInfo,
-    JOURNAL_TIERS,
-    JOURNAL_EMOJIS,
+    PREPRINT_SERVERS,
 )
 from paper_slack_bot.storage.database import Paper
 
@@ -22,12 +21,9 @@ class TestJournalFilter:
 
     @pytest.fixture
     def custom_filter(self):
-        """Create a journal filter with custom config."""
+        """Create a journal filter with custom exclude config."""
         config = JournalConfig(
-            include=["Custom Journal"],
             exclude=["Bad Journal"],
-            tiers=["tier1"],
-            show_preprints=True,
         )
         return JournalFilter(config)
 
@@ -70,10 +66,10 @@ class TestJournalFilter:
                 authors=["Author 4"],
                 abstract="Abstract 4",
                 doi="10.1234/4",
-                journal="NeurIPS",
+                journal="arXiv",
                 publication_date="2024-01-04",
                 url="https://example.com/4",
-                source="pubmed",
+                source="arxiv",
             ),
         ]
 
@@ -83,22 +79,22 @@ class TestJournalFilter:
         assert filter.normalize_journal_name("nejm") == "The New England Journal of Medicine"
         assert filter.normalize_journal_name("pnas") == "Proceedings of the National Academy of Sciences"
 
-    def test_get_journal_tier(self, filter):
-        """Test getting journal tier."""
-        assert filter.get_journal_tier("Nature") == "tier1"
-        assert filter.get_journal_tier("Science") == "tier1"
-        assert filter.get_journal_tier("Nature Methods") == "tier2"
-        assert filter.get_journal_tier("NeurIPS") == "ml"
-        assert filter.get_journal_tier("bioRxiv") == "preprints"
-        assert filter.get_journal_tier("Unknown Journal") is None
+    def test_is_preprint(self, filter):
+        """Test preprint detection."""
+        assert filter.is_preprint("bioRxiv") is True
+        assert filter.is_preprint("arXiv") is True
+        assert filter.is_preprint("medRxiv") is True
+        assert filter.is_preprint("Nature") is False
+        assert filter.is_preprint("Science") is False
 
     def test_get_journal_emoji(self, filter):
         """Test getting journal emoji."""
-        assert filter.get_journal_emoji("Nature") == "🏆"
-        assert filter.get_journal_emoji("Nature Methods") == "⭐"
-        assert filter.get_journal_emoji("NeurIPS") == "🤖"
+        # Preprints get the preprint emoji
         assert filter.get_journal_emoji("bioRxiv") == "📝"
-        assert filter.get_journal_emoji("Unknown") == "📄"
+        assert filter.get_journal_emoji("arXiv") == "📝"
+        # Journals get the journal emoji
+        assert filter.get_journal_emoji("Nature") == "📰"
+        assert filter.get_journal_emoji("Unknown") == "📰"
 
     def test_get_journal_info(self, filter):
         """Test getting full journal info."""
@@ -106,108 +102,79 @@ class TestJournalFilter:
         
         assert isinstance(info, JournalInfo)
         assert info.name == "Nature"
-        assert info.tier == "tier1"
-        assert info.emoji == "🏆"
+        assert info.is_preprint is False
+        assert info.emoji == "📰"
 
-    def test_filter_papers_by_tier(self, filter, sample_papers):
-        """Test filtering papers by tier."""
-        filtered = filter.filter_papers(
-            sample_papers,
-            tiers=["tier1"],
-            show_preprints=False,
-        )
-        
-        assert len(filtered) == 1
-        assert filtered[0].journal == "Nature"
+        info_preprint = filter.get_journal_info("bioRxiv")
+        assert info_preprint.is_preprint is True
+        assert info_preprint.emoji == "📝"
 
-    def test_filter_papers_with_preprints(self, filter, sample_papers):
-        """Test filtering papers with preprints included."""
-        filtered = filter.filter_papers(
-            sample_papers,
-            tiers=["tier1"],
-            show_preprints=True,
-        )
+    def test_filter_papers_includes_all_by_default(self, filter, sample_papers):
+        """Test that all papers are included by default."""
+        filtered, excluded = filter.filter_papers(sample_papers)
         
-        journals = [p.journal for p in filtered]
-        assert "Nature" in journals
-        assert "bioRxiv" in journals
-        assert "Unknown Journal" not in journals
-
-    def test_filter_papers_by_include_list(self, filter, sample_papers):
-        """Test filtering papers by include list."""
-        filtered = filter.filter_papers(
-            sample_papers,
-            include_journals=["Unknown Journal"],
-            show_preprints=False,
-        )
-        
-        assert len(filtered) == 1
-        assert filtered[0].journal == "Unknown Journal"
+        assert len(filtered) == 4
+        assert excluded == []
 
     def test_filter_papers_by_exclude_list(self, filter, sample_papers):
         """Test filtering papers by exclude list."""
-        filtered = filter.filter_papers(
+        filtered, excluded = filter.filter_papers(
             sample_papers,
             exclude_journals=["Nature"],
-            tiers=["tier1", "tier2", "ml"],
-            show_preprints=True,
         )
         
         journals = [p.journal for p in filtered]
         assert "Nature" not in journals
-        assert "bioRxiv" in journals
+        assert len(filtered) == 3
+        assert excluded == ["Nature"]
 
     def test_filter_papers_empty_list(self, filter):
         """Test filtering empty paper list."""
-        filtered = filter.filter_papers([])
+        filtered, excluded = filter.filter_papers([])
         assert filtered == []
+        assert excluded == []
 
     def test_categorize_papers(self, filter, sample_papers):
-        """Test categorizing papers by tier."""
+        """Test categorizing papers into journals vs preprints."""
         categorized = filter.categorize_papers(sample_papers)
         
-        assert len(categorized["tier1"]) == 1
-        assert categorized["tier1"][0].journal == "Nature"
+        # Should have 'journals' and 'preprints' keys
+        assert "journals" in categorized
+        assert "preprints" in categorized
         
-        assert len(categorized["ml"]) == 1
-        assert categorized["ml"][0].journal == "NeurIPS"
+        # Check journals
+        journal_names = [p.journal for p in categorized["journals"]]
+        assert "Nature" in journal_names
+        assert "Unknown Journal" in journal_names
         
-        assert len(categorized["preprints"]) == 1
-        assert categorized["preprints"][0].journal == "bioRxiv"
-        
-        assert len(categorized["other"]) == 1
-        assert categorized["other"][0].journal == "Unknown Journal"
+        # Check preprints
+        preprint_names = [p.journal for p in categorized["preprints"]]
+        assert "bioRxiv" in preprint_names
+        assert "arXiv" in preprint_names
 
-    def test_get_tier_journals(self, filter):
-        """Test getting journals for a tier."""
-        tier1_journals = filter.get_tier_journals("tier1")
+    def test_custom_config_exclude(self, custom_filter, sample_papers):
+        """Test filter with custom exclude configuration."""
+        # Add a paper from excluded journal
+        bad_paper = Paper(
+            title="Bad Paper",
+            authors=["Author"],
+            abstract="Abstract",
+            doi="10.1234/bad",
+            journal="Bad Journal",
+            publication_date="2024-01-05",
+            url="https://example.com/bad",
+            source="pubmed",
+        )
+        papers_with_bad = sample_papers + [bad_paper]
         
-        assert "Nature" in tier1_journals
-        assert "Science" in tier1_journals
-        assert "Cell" in tier1_journals
-
-    def test_get_all_tiers(self, filter):
-        """Test getting all tier names."""
-        tiers = filter.get_all_tiers()
+        filtered, excluded = custom_filter.filter_papers(papers_with_bad)
         
-        assert "tier1" in tiers
-        assert "tier2" in tiers
-        assert "ml" in tiers
-        assert "preprints" in tiers
-
-    def test_custom_config(self, custom_filter, sample_papers):
-        """Test filter with custom configuration."""
-        filtered = custom_filter.filter_papers(sample_papers)
-        
-        # Should include tier1, Custom Journal, and preprints
         journals = [p.journal for p in filtered]
-        assert "Nature" in journals
-        assert "bioRxiv" in journals
+        assert "Bad Journal" not in journals
+        assert len(filtered) == 4  # Original 4, excluding the bad one
 
-    def test_partial_journal_match(self, filter):
-        """Test partial journal name matching."""
-        assert filter.get_journal_tier("Nature Methods") == "tier2"
-        assert filter.get_journal_tier("Nature Communications") == "tier2"
-        # Should match if journal name contains tier journal name
-        assert filter.get_journal_tier("The Lancet Oncology") is not None or \
-               filter.get_journal_tier("Lancet") == "tier1"
+    def test_preprint_servers_constant(self):
+        """Test that preprint servers constant is defined correctly."""
+        assert "bioRxiv" in PREPRINT_SERVERS
+        assert "arXiv" in PREPRINT_SERVERS
+        assert "medRxiv" in PREPRINT_SERVERS

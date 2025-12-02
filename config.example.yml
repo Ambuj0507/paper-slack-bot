@@ -24,26 +24,12 @@ search:
     - arxiv
   days_back: 1
 
-# Journal Filtering (NEW - key differentiator from PaperBee)
+# Journal Filtering
+# All journals are included by default. Papers are grouped into "Journal Articles"
+# and "Preprints" (bioRxiv, arXiv, medRxiv) in Slack messages.
 journals:
-  # Explicitly include specific journals
-  include:
-    - "Nature"
-    - "Science"
-    - "Cell"
-    - "Nature Methods"
-    - "Nature Communications"
-    - "eLife"
-  # Exclude specific journals
+  # Exclude specific journals if needed (optional)
   exclude: []
-  # Include all journals from these tiers
-  # Options: tier1, tier2, ml, preprints
-  tiers:
-    - tier1
-    - tier2
-    - ml
-  # Whether to include preprints (bioRxiv, arXiv, medRxiv)
-  show_preprints: true
 
 # LLM Configuration
 llm:

@@ -33,10 +33,7 @@ class TestBotChatPostMessage:
                 days_back=7,
             ),
             journals=JournalConfig(
-                include=[],
                 exclude=[],
-                tiers=[],
-                show_preprints=True,
             ),
             llm=LLMConfig(
                 provider="openai",
@@ -180,5 +177,5 @@ class TestBotChatPostMessage:
         mock_client.chat_postMessage.assert_called_once()
         call_kwargs = mock_client.chat_postMessage.call_args.kwargs
         assert "text" in call_kwargs, "chat_postMessage must include 'text' parameter"
-        assert "journals" in call_kwargs["text"].lower()
+        assert "journal" in call_kwargs["text"].lower()
         assert "blocks" in call_kwargs

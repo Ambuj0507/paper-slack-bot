@@ -79,8 +79,15 @@ def post(config_path: str, days: int, dry_run: bool):
 
         # Apply journal filter
         journal_filter = JournalFilter(config.journals)
-        papers = journal_filter.filter_papers(papers)
-        click.echo(f"After journal filter: {len(papers)} papers")
+        papers, excluded_journals = journal_filter.filter_papers(papers)
+
+        # Display filter criteria
+        click.echo("Applying filter: Including all journals")
+        if excluded_journals:
+            click.echo(f"  Excluded journals: {excluded_journals}")
+        else:
+            click.echo("  Excluded journals: [] (none)")
+        click.echo(f"After filter: {len(papers)} papers")
 
         # Apply LLM filter if available
         if config.openai_api_key and papers:
@@ -160,7 +167,7 @@ def search(query: str, config_path: str, limit: int, source: tuple):
 
         # Apply journal filter
         journal_filter = JournalFilter(config.journals)
-        papers = journal_filter.filter_papers(papers)
+        papers, _ = journal_filter.filter_papers(papers)
 
         # Apply search engine for ranking
         database = Database(config.storage.database_path)
@@ -253,10 +260,8 @@ def test_config(config_path: str):
         click.echo(f"  Days Back: {config.search.days_back}")
 
         click.echo(f"\n📚 Journal Configuration:")
-        click.echo(f"  Include: {', '.join(config.journals.include) or 'All'}")
+        click.echo("  Include: All journals (no tier filtering)")
         click.echo(f"  Exclude: {', '.join(config.journals.exclude) or 'None'}")
-        click.echo(f"  Tiers: {', '.join(config.journals.tiers) or 'None'}")
-        click.echo(f"  Show Preprints: {'Yes' if config.journals.show_preprints else 'No'}")
 
         click.echo(f"\n🤖 LLM Configuration:")
         click.echo(f"  Provider: {config.llm.provider}")

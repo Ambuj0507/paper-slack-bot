@@ -350,9 +350,13 @@ Abstract: {paper.abstract[:500]}{'...' if len(paper.abstract) > 500 else ''}
         except (json.JSONDecodeError, ValueError) as e:
             logger.warning(f"Error parsing batch response: {e}")
 
-        # Fallback: return default scores
+        # Fallback: return default scores with descriptive explanation
         return [
-            RelevanceResult(score=50.0, explanation="Parse error", paper=p)
+            RelevanceResult(
+                score=50.0,
+                explanation="Unable to score - LLM response invalid",
+                paper=p,
+            )
             for p in papers
         ]
 
