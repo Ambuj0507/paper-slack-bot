@@ -30,63 +30,18 @@ class SearchConfig:
 
 @dataclass
 class JournalConfig:
-    """Journal filtering configuration."""
+    """Journal filtering configuration.
 
-    include: list[str] = field(default_factory=list)
+    By default, all journals are included. Use the exclude list to filter out
+    specific journals if needed.
+    """
+
     exclude: list[str] = field(default_factory=list)
-    tiers: list[str] = field(default_factory=list)
-    show_preprints: bool = True
 
-    # Pre-defined journal tiers
-    TIER1_JOURNALS: list[str] = field(
-        default_factory=lambda: [
-            "Nature",
-            "Science",
-            "Cell",
-            "The New England Journal of Medicine",
-            "NEJM",
-            "Lancet",
-            "The Lancet",
-        ]
-    )
-    TIER2_JOURNALS: list[str] = field(
-        default_factory=lambda: [
-            "Nature Methods",
-            "Nature Communications",
-            "PNAS",
-            "Proceedings of the National Academy of Sciences",
-            "eLife",
-            "Nature Biotechnology",
-            "Nature Genetics",
-        ]
-    )
-    ML_JOURNALS: list[str] = field(
-        default_factory=lambda: [
-            "NeurIPS",
-            "ICML",
-            "Nature Machine Intelligence",
-            "ICLR",
-            "Journal of Machine Learning Research",
-        ]
-    )
+    # Known preprint servers for categorization
     PREPRINT_SERVERS: list[str] = field(
         default_factory=lambda: ["bioRxiv", "arXiv", "medRxiv"]
     )
-
-    def get_allowed_journals(self) -> set[str]:
-        """Get the set of allowed journals based on tiers and include list."""
-        allowed = set(self.include)
-        for tier in self.tiers:
-            tier_lower = tier.lower()
-            if tier_lower == "tier1":
-                allowed.update(self.TIER1_JOURNALS)
-            elif tier_lower == "tier2":
-                allowed.update(self.TIER2_JOURNALS)
-            elif tier_lower in ("ml", "ml-focused"):
-                allowed.update(self.ML_JOURNALS)
-        if self.show_preprints:
-            allowed.update(self.PREPRINT_SERVERS)
-        return allowed
 
 
 @dataclass
@@ -209,10 +164,7 @@ class Config:
         if "journals" in data:
             journal_data = data["journals"]
             config.journals = JournalConfig(
-                include=journal_data.get("include", []),
                 exclude=journal_data.get("exclude", []),
-                tiers=journal_data.get("tiers", []),
-                show_preprints=journal_data.get("show_preprints", True),
             )
 
         # LLM config

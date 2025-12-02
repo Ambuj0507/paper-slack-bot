@@ -101,7 +101,7 @@ class PaperSlackBot:
             )
 
             # Apply journal filter
-            papers = self.journal_filter.filter_papers(papers)
+            papers, _ = self.journal_filter.filter_papers(papers)
 
             # Apply LLM filter if available
             if self.llm_filter and papers:
@@ -230,36 +230,28 @@ class PaperSlackBot:
         """
         ack()
 
-        arg = command.get("text", "").strip().lower()
         channel_id = command.get("channel_id")
 
         try:
-            if arg in ("tier1", "tier2", "ml", "preprints"):
-                # Show journals in specific tier
-                journals = self.journal_filter.get_tier_journals(arg)
-                blocks = self.formatter.format_journal_list(journals, tier=arg)
-            elif arg == "list":
-                # Show all configured journals
-                journals = list(self.config.journals.include)
-                blocks = self.formatter.format_journal_list(journals)
+            # Show current journal configuration
+            excluded = self.config.journals.exclude or []
+            if excluded:
+                message = f"*Journal Configuration*\n\nAll journals are included by default.\n\n*Excluded journals:*\n• " + "\n• ".join(excluded)
             else:
-                # Show all tiers
-                blocks = []
-                for tier in self.journal_filter.get_all_tiers():
-                    journals = self.journal_filter.get_tier_journals(tier)
-                    tier_blocks = self.formatter.format_journal_list(journals, tier=tier)
-                    blocks.extend(tier_blocks)
+                message = "*Journal Configuration*\n\nAll journals are included (no exclusions configured).\n\nPapers are grouped into:\n• 📰 Journal Articles\n• 📝 Preprints (bioRxiv, arXiv, medRxiv)"
 
-            # Split blocks to respect Slack's 50-block limit
-            block_batches = SlackFormatter.split_blocks(blocks)
+            blocks = [
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": message},
+                }
+            ]
 
-            tier_text = f" ({arg})" if arg else ""
-            for batch in block_batches:
-                client.chat_postMessage(
-                    channel=channel_id,
-                    text=f"Configured journals{tier_text}",
-                    blocks=batch,
-                )
+            client.chat_postMessage(
+                channel=channel_id,
+                text="Journal configuration",
+                blocks=blocks,
+            )
 
         except Exception as e:
             logger.error(f"Error in paperjournals: {e}")
@@ -399,7 +391,7 @@ class PaperSlackBot:
             )
 
             # Apply journal filter
-            papers = self.journal_filter.filter_papers(papers)
+            papers, _ = self.journal_filter.filter_papers(papers)
 
             # Apply LLM filter if available
             if self.llm_filter and papers:

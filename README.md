@@ -25,13 +25,12 @@ A Slack-focused scientific paper discovery bot inspired by [PaperBee](https://gi
   - Exclude specific terms
 - **Search history** stored in local SQLite database
 
-### 📚 Journal Name Filtering
-- Filter papers by specific journal names (include/exclude lists)
-- Support journal tiers/categories:
-  - 🏆 **Tier 1**: Nature, Science, Cell, NEJM, Lancet
-  - ⭐ **Tier 2**: Nature Methods, Nature Communications, PNAS, eLife
-  - 🤖 **ML-focused**: NeurIPS, ICML, Nature Machine Intelligence
-  - 📝 **Preprints**: bioRxiv, arXiv, medRxiv
+### 📚 Journal Filtering
+- **Include all journals by default** - no tier-based restrictions
+- Optional exclusion list for specific journals
+- Papers automatically grouped under:
+  - 📰 **Journal Articles** - Papers from peer-reviewed journals
+  - 📝 **Preprints** - Papers from bioRxiv, arXiv, medRxiv
 - Journal name prominently displayed in Slack messages
 
 ### 🤖 LLM-Based Filtering
@@ -99,10 +98,8 @@ search:
   days_back: 1
 
 journals:
-  tiers:
-    - tier1
-    - tier2
-  show_preprints: true
+  # Exclude specific journals if needed (optional)
+  exclude: []
 ```
 
 ### Run the Bot
@@ -183,16 +180,10 @@ search:
   days_back: 1                       # Days to look back
 
 # Journal Filtering
+# All journals are included by default. Papers are grouped into
+# "Journal Articles" and "Preprints" in Slack messages.
 journals:
-  include:                           # Whitelist specific journals
-    - "Nature"
-    - "Science"
   exclude: []                        # Blacklist specific journals
-  tiers:                             # Include journal tiers
-    - tier1                          # Nature, Science, Cell, etc.
-    - tier2                          # Nature Methods, PNAS, etc.
-    - ml                             # NeurIPS, ICML, etc.
-  show_preprints: true               # Include bioRxiv/arXiv
 
 # LLM Configuration
 llm:
@@ -269,12 +260,10 @@ Subscribe to topics for daily updates.
 /papersubscribe
 ```
 
-### `/paperjournals [tier]`
-View journal configurations.
+### `/paperjournals`
+View current journal configuration.
 ```
 /paperjournals
-/paperjournals tier1
-/paperjournals ml
 ```
 
 ### `/papersettings`

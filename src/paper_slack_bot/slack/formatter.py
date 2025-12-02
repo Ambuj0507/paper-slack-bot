@@ -8,6 +8,9 @@ from paper_slack_bot.storage.database import Paper
 # Slack API limit for blocks per message
 MAX_BLOCKS_PER_MESSAGE = 50
 
+# Maximum papers to show per category in digest
+MAX_PAPERS_PER_CATEGORY = 10
+
 
 class SlackFormatter:
     """Format papers for Slack messages with rich formatting."""
@@ -140,7 +143,7 @@ class SlackFormatter:
         show_actions: bool = True,
         max_papers: int = 10,
     ) -> list[dict[str, Any]]:
-        """Format multiple papers as Slack blocks.
+        """Format multiple papers as Slack blocks, grouped by journals vs preprints.
 
         Args:
             papers: List of papers to format.
@@ -164,29 +167,6 @@ class SlackFormatter:
                 }
             )
 
-        # Summary
-        if papers:
-            summary = f"Found *{len(papers)}* papers"
-            if len(papers) > max_papers:
-                summary += f" (showing top {max_papers})"
-            blocks.append(
-                {
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": summary},
-                }
-            )
-            blocks.append({"type": "divider"})
-
-        # Papers
-        for paper in papers[:max_papers]:
-            paper_blocks = self.format_paper(
-                paper,
-                show_abstract=show_abstract,
-                show_relevance=show_relevance,
-                show_actions=show_actions,
-            )
-            blocks.extend(paper_blocks)
-
         # No papers found
         if not papers:
             blocks.append(
@@ -198,6 +178,65 @@ class SlackFormatter:
                     },
                 }
             )
+            return blocks
+
+        # Categorize papers into journals vs preprints
+        categorized = self.journal_filter.categorize_papers(papers)
+        journal_papers = categorized.get("journals", [])
+        preprint_papers = categorized.get("preprints", [])
+
+        # Summary
+        summary = f"Found *{len(papers)}* papers"
+        summary += f" (📰 {len(journal_papers)} journals, 📝 {len(preprint_papers)} preprints)"
+        if len(papers) > max_papers:
+            summary += f" - showing top {max_papers}"
+        blocks.append(
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": summary},
+            }
+        )
+        blocks.append({"type": "divider"})
+
+        # Calculate how many papers to show from each category
+        papers_shown = 0
+        remaining = max_papers
+
+        # Show journal articles first
+        if journal_papers and remaining > 0:
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": "*📰 Journal Articles*"},
+                }
+            )
+            for paper in journal_papers[:remaining]:
+                paper_blocks = self.format_paper(
+                    paper,
+                    show_abstract=show_abstract,
+                    show_relevance=show_relevance,
+                    show_actions=show_actions,
+                )
+                blocks.extend(paper_blocks)
+                papers_shown += 1
+            remaining = max_papers - papers_shown
+
+        # Show preprints
+        if preprint_papers and remaining > 0:
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": "*📝 Preprints*"},
+                }
+            )
+            for paper in preprint_papers[:remaining]:
+                paper_blocks = self.format_paper(
+                    paper,
+                    show_abstract=show_abstract,
+                    show_relevance=show_relevance,
+                    show_actions=show_actions,
+                )
+                blocks.extend(paper_blocks)
 
         return blocks
 
@@ -206,7 +245,7 @@ class SlackFormatter:
         papers: list[Paper],
         date: str,
     ) -> list[dict[str, Any]]:
-        """Format a daily digest of papers.
+        """Format a daily digest of papers, grouped by journals vs preprints.
 
         Args:
             papers: List of papers for the digest.
@@ -229,21 +268,17 @@ class SlackFormatter:
             }
         )
 
-        # Categorize papers by journal tier
+        # Categorize papers into journals vs preprints
         categorized = self.journal_filter.categorize_papers(papers)
+        journal_papers = categorized.get("journals", [])
+        preprint_papers = categorized.get("preprints", [])
 
-        # Summary by tier
+        # Summary
         summary_parts = []
-        for tier, tier_papers in categorized.items():
-            if tier_papers:
-                emoji = {
-                    "tier1": "🏆",
-                    "tier2": "⭐",
-                    "ml": "🤖",
-                    "preprints": "📝",
-                    "other": "📄",
-                }.get(tier, "📄")
-                summary_parts.append(f"{emoji} {tier.title()}: {len(tier_papers)}")
+        if journal_papers:
+            summary_parts.append(f"📰 Journals: {len(journal_papers)}")
+        if preprint_papers:
+            summary_parts.append(f"📝 Preprints: {len(preprint_papers)}")
 
         if summary_parts:
             blocks.append(
@@ -258,31 +293,40 @@ class SlackFormatter:
 
         blocks.append({"type": "divider"})
 
-        # Papers by tier
-        for tier in ["tier1", "tier2", "ml", "preprints", "other"]:
-            tier_papers = categorized.get(tier, [])
-            if not tier_papers:
-                continue
-
-            tier_names = {
-                "tier1": "🏆 Top Tier Journals",
-                "tier2": "⭐ High-Impact Journals",
-                "ml": "🤖 ML/AI Journals",
-                "preprints": "📝 Preprints",
-                "other": "📄 Other Journals",
-            }
-
+        # Journal Articles section
+        if journal_papers:
             blocks.append(
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*{tier_names.get(tier, tier)}*",
+                        "text": "*📰 Journal Articles*",
                     },
                 }
             )
 
-            for paper in tier_papers[:5]:  # Limit per tier
+            for paper in journal_papers[:MAX_PAPERS_PER_CATEGORY]:
+                paper_blocks = self.format_paper(
+                    paper,
+                    show_abstract=False,  # Compact view for digest
+                    show_relevance=True,
+                    show_actions=True,
+                )
+                blocks.extend(paper_blocks)
+
+        # Preprints section
+        if preprint_papers:
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "*📝 Preprints*",
+                    },
+                }
+            )
+
+            for paper in preprint_papers[:MAX_PAPERS_PER_CATEGORY]:
                 paper_blocks = self.format_paper(
                     paper,
                     show_abstract=False,  # Compact view for digest
