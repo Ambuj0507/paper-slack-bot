@@ -32,8 +32,7 @@ JOURNAL_ALIASES = {
     "nat mach intell": "Nature Machine Intelligence",
 }
 
-# Default emoji for all papers
-PAPER_EMOJI = "📄"
+# Emoji indicators
 PREPRINT_EMOJI = "📝"
 JOURNAL_EMOJI = "📰"
 
@@ -45,7 +44,7 @@ class JournalInfo:
     name: str
     normalized_name: str
     is_preprint: bool = False
-    emoji: str = "📄"
+    emoji: str = JOURNAL_EMOJI
 
 
 class JournalFilter:

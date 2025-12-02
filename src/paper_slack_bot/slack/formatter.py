@@ -8,6 +8,9 @@ from paper_slack_bot.storage.database import Paper
 # Slack API limit for blocks per message
 MAX_BLOCKS_PER_MESSAGE = 50
 
+# Maximum papers to show per category in digest
+MAX_PAPERS_PER_CATEGORY = 10
+
 
 class SlackFormatter:
     """Format papers for Slack messages with rich formatting."""
@@ -302,7 +305,7 @@ class SlackFormatter:
                 }
             )
 
-            for paper in journal_papers[:10]:  # Limit journals
+            for paper in journal_papers[:MAX_PAPERS_PER_CATEGORY]:
                 paper_blocks = self.format_paper(
                     paper,
                     show_abstract=False,  # Compact view for digest
@@ -323,7 +326,7 @@ class SlackFormatter:
                 }
             )
 
-            for paper in preprint_papers[:10]:  # Limit preprints
+            for paper in preprint_papers[:MAX_PAPERS_PER_CATEGORY]:
                 paper_blocks = self.format_paper(
                     paper,
                     show_abstract=False,  # Compact view for digest
