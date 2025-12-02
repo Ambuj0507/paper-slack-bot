@@ -1,12 +1,15 @@
 """SQLite database storage for Paper Slack Bot."""
 
 import json
+import logging
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Generator, Optional
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -158,8 +161,16 @@ class Database:
             paper: Paper object to save.
 
         Returns:
-            ID of the saved paper.
+            ID of the saved paper, or 0 if the paper has no title and
+            was skipped.
         """
+        # Skip papers with empty or missing titles (required by DB schema)
+        if not paper.title or not paper.title.strip():
+            logger.warning(
+                "Skipping paper with empty title (DOI: %s)", paper.doi
+            )
+            return 0
+
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
