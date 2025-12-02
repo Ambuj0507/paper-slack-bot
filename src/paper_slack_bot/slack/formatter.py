@@ -11,6 +11,15 @@ MAX_BLOCKS_PER_MESSAGE = 50
 # Maximum papers to show per category in digest
 MAX_PAPERS_PER_CATEGORY = 10
 
+# Error message patterns that should not be displayed to users
+ERROR_EXPLANATION_PATTERNS = [
+    "unable to parse",
+    "unable to score",
+    "error during scoring",
+    "error:",
+    "not scored",
+]
+
 
 class SlackFormatter:
     """Format papers for Slack messages with rich formatting."""
@@ -76,18 +85,23 @@ class SlackFormatter:
 
         # Relevance score
         if show_relevance and paper.relevance_score is not None:
-            score = paper.relevance_score
-            score_bar = self._score_to_bar(score)
-            relevance_text = f"🎯 Relevance: {score_bar} {score:.0f}/100"
-            if paper.relevance_explanation:
-                relevance_text += f"\n_{paper.relevance_explanation}_"
+            # Check if explanation is an error message
+            explanation_is_error = self._is_error_explanation(paper.relevance_explanation)
 
-            blocks.append(
-                {
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": relevance_text},
-                }
-            )
+            # Don't show relevance section at all if it's an error
+            if not explanation_is_error:
+                score = paper.relevance_score
+                score_bar = self._score_to_bar(score)
+                relevance_text = f"🎯 Relevance: {score_bar} {score:.0f}/100"
+                if paper.relevance_explanation:
+                    relevance_text += f"\n_{paper.relevance_explanation}_"
+
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": relevance_text},
+                    }
+                )
 
         # Abstract preview
         if show_abstract and paper.abstract:
@@ -516,6 +530,21 @@ class SlackFormatter:
         filled = int((score / 100) * length)
         empty = length - filled
         return "▓" * filled + "░" * empty
+
+    @staticmethod
+    def _is_error_explanation(explanation: Optional[str]) -> bool:
+        """Check if the relevance explanation indicates an error.
+
+        Args:
+            explanation: The relevance explanation text.
+
+        Returns:
+            True if the explanation is an error message, False otherwise.
+        """
+        if not explanation:
+            return False
+        explanation_lower = explanation.lower()
+        return any(pattern in explanation_lower for pattern in ERROR_EXPLANATION_PATTERNS)
 
     @staticmethod
     def split_blocks(
