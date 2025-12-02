@@ -160,8 +160,7 @@ Consider: methodology novelty, dataset quality, and practical applications."""
         except Exception as e:
             logger.error(f"Error scoring batch: {e}")
             return [
-                RelevanceResult(score=50.0, explanation=f"Error: {str(e)}", paper=p)
-                for p in papers
+                RelevanceResult(score=50.0, explanation=f"Error: {str(e)}", paper=p) for p in papers
             ]
 
     def filter_papers(
@@ -203,9 +202,7 @@ Consider: methodology novelty, dataset quality, and practical applications."""
         """
         return self.config.filtering_prompt or self.DEFAULT_PROMPT
 
-    def _build_prompt(
-        self, paper: Paper, research_interests: Optional[str] = None
-    ) -> str:
+    def _build_prompt(self, paper: Paper, research_interests: Optional[str] = None) -> str:
         """Build prompt for single paper scoring.
 
         Args:
@@ -302,9 +299,7 @@ Abstract: {paper.abstract[:500]}{'...' if len(paper.abstract) > 500 else ''}
 
         return 50.0, content
 
-    def _parse_batch_response(
-        self, content: str, papers: list[Paper]
-    ) -> list[RelevanceResult]:
+    def _parse_batch_response(self, content: str, papers: list[Paper]) -> list[RelevanceResult]:
         """Parse LLM response for batch scoring.
 
         Args:
@@ -314,14 +309,23 @@ Abstract: {paper.abstract[:500]}{'...' if len(paper.abstract) > 500 else ''}
         Returns:
             List of RelevanceResult objects.
         """
+        import re
+
         results = []
+
+        # First, try to clean markdown code blocks if present
+        cleaned_content = content
+        # Remove markdown code blocks (```json ... ``` or ``` ... ```)
+        code_block_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", content)
+        if code_block_match:
+            cleaned_content = code_block_match.group(1)
 
         try:
             # Try to parse JSON array
-            start = content.find("[")
-            end = content.rfind("]") + 1
+            start = cleaned_content.find("[")
+            end = cleaned_content.rfind("]") + 1
             if start >= 0 and end > start:
-                json_str = content[start:end]
+                json_str = cleaned_content[start:end]
                 data = json.loads(json_str)
 
                 for i, item in enumerate(data):
@@ -348,13 +352,76 @@ Abstract: {paper.abstract[:500]}{'...' if len(paper.abstract) > 500 else ''}
 
                 return results
         except (json.JSONDecodeError, ValueError) as e:
-            logger.warning(f"Error parsing batch response: {e}")
+            logger.warning(f"Error parsing batch response as JSON array: {e}")
 
-        # Fallback: return default scores with descriptive explanation
+        # Try to parse individual JSON objects for each paper
+        try:
+            json_objects = re.findall(r"\{[^{}]*\}", cleaned_content)
+            if json_objects:
+                for i, json_str in enumerate(json_objects):
+                    if i < len(papers):
+                        try:
+                            item = json.loads(json_str)
+                            score = float(item.get("score", 50))
+                            explanation = item.get("explanation", "No explanation")
+                            results.append(
+                                RelevanceResult(
+                                    score=score,
+                                    explanation=explanation,
+                                    paper=papers[i],
+                                )
+                            )
+                        except (json.JSONDecodeError, ValueError):
+                            continue
+
+                if results:
+                    # Fill in missing papers with default scores
+                    for i in range(len(results), len(papers)):
+                        results.append(
+                            RelevanceResult(
+                                score=50.0,
+                                explanation="Not scored",
+                                paper=papers[i],
+                            )
+                        )
+                    return results
+        except Exception as e:
+            logger.warning(f"Error parsing individual JSON objects: {e}")
+
+        # Fallback: try to extract scores using regex patterns
+        # Look for patterns like "Paper 1: 85/100" or "1. Score: 85"
+        score_patterns = [
+            r"[Pp]aper\s*(\d+)[:\s]+(\d{1,3})(?:/100)?",
+            r"(\d+)\.\s*[Ss]core[:\s]+(\d{1,3})",
+            r"(\d+)[.)\s]+.*?(\d{1,3})\s*/\s*100",
+        ]
+
+        for pattern in score_patterns:
+            matches = re.findall(pattern, content)
+            if matches:
+                paper_scores = {}
+                for match in matches:
+                    paper_num = int(match[0])
+                    score = min(100, max(0, int(match[1])))
+                    paper_scores[paper_num] = score
+
+                if paper_scores:
+                    for i, paper in enumerate(papers, 1):
+                        score = float(paper_scores.get(i, 50))
+                        results.append(
+                            RelevanceResult(
+                                score=score,
+                                explanation="Score extracted from text",
+                                paper=paper,
+                            )
+                        )
+                    return results
+
+        # Final fallback: return default scores with descriptive explanation
         return [
             RelevanceResult(
                 score=50.0,
-                explanation="Unable to score - LLM response invalid",
+                explanation="Unable to parse LLM response",
                 paper=p,
             )
             for p in papers
