@@ -167,7 +167,7 @@ class Database:
         # Skip papers with empty or missing titles (required by DB schema)
         if not paper.title or not paper.title.strip():
             logger.warning(
-                f"Skipping paper with empty title (DOI: {paper.doi})"
+                "Skipping paper with empty title (DOI: %s)", paper.doi
             )
             return 0
 
